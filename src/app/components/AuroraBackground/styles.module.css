@@ -1,0 +1,79 @@
+.container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+  }
+  
+  .auroraContainer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  
+  .aurora {
+    position: absolute;
+    inset: -10px;
+    opacity: 0.7;
+    will-change: transform;
+    filter: blur(16px);
+    background: 
+      repeating-linear-gradient(100deg, rgba(82,113,255,0.7) 10%, rgba(255,215,0,0.7) 20%, rgba(255,140,66,0.7) 30%, rgba(82,113,255,0.7) 40%),
+      radial-gradient(ellipse at 60% 40%, rgba(255,255,255,0.3) 0%, transparent 70%),
+      radial-gradient(ellipse at 20% 80%, rgba(255,215,0,0.2) 0%, transparent 80%),
+      radial-gradient(ellipse at 80% 80%, rgba(82,113,255,0.2) 0%, transparent 80%);
+    background-size: 300% 200%, 100% 100%, 100% 100%, 100% 100%;
+    background-position: 50% 50%, 60% 40%, 20% 80%, 80% 80%;
+    animation: auroraMove 18s linear infinite;
+    mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%);
+  }
+  
+  :global(.dark) .aurora {
+    background: 
+      repeating-linear-gradient(100deg, rgba(82,113,255,0.5) 10%, rgba(255,215,0,0.4) 20%, rgba(255,140,66,0.4) 30%, rgba(82,113,255,0.5) 40%),
+      radial-gradient(ellipse at 60% 40%, rgba(255,255,255,0.1) 0%, transparent 70%),
+      radial-gradient(ellipse at 20% 80%, rgba(255,215,0,0.1) 0%, transparent 80%),
+      radial-gradient(ellipse at 80% 80%, rgba(82,113,255,0.1) 0%, transparent 80%);
+    background-size: 300% 200%, 100% 100%, 100% 100%, 100% 100%;
+    background-position: 50% 50%, 60% 40%, 20% 80%, 80% 80%;
+  }
+  
+  .auroraDark {
+    background-image: var(--dark-gradient), var(--aurora);
+    filter: blur(8px);
+  }
+  
+  .aurora::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--white-gradient), var(--aurora);
+    background-size: 200%, 100%;
+    animation: aurora 20s linear infinite;
+    background-attachment: fixed;
+    mix-blend-mode: difference;
+  }
+  
+  :global(.dark) .aurora::after {
+    background-image: var(--dark-gradient), var(--aurora);
+  }
+  
+  .radialGradient {
+    mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%);
+  }
+  
+  @keyframes auroraMove {
+    0% {
+      background-position: 0% 0%, 60% 40%, 20% 80%, 80% 80%;
+    }
+    50% {
+      background-position: 100% 100%, 40% 60%, 80% 20%, 20% 80%;
+    }
+    100% {
+      background-position: 0% 0%, 60% 40%, 20% 80%, 80% 80%;
+    }
+  } 
