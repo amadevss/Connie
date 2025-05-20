@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-// import { Send, Bot, Loader2, Trash2, ArrowDown, X, Camera, Image as ImageIcon } from "lucide-react";
-import { Send, Bot, Trash2, ArrowDown, X, Camera } from "lucide-react";
+import { Send, Bot, Trash2, ArrowDown, X, FileText, StopCircle, Sun, Moon } from "lucide-react";
 import { ChatMessage } from "./chat-message";
 import { useChat } from "./use-chat";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,8 +15,7 @@ import Image from "next/image";
 import ConfigAsistente from "@/components/ui/ConfigAsistente";
 import ConfigIngles from "@/components/ui/ConfigIngles";
 import JuegoEmociones from "@/components/ui/JuegoEmociones";
-// import { AIService } from "./ai-service";
-// import { BLACKLIST, BLACKLIST_REGEX } from "./blacklist";
+import { useTheme } from "next-themes";
 
 const opcionesMenu = [
   { key: "frida", label: "Frida Kahlo", emoji: "🧑‍🎨", textColor: "text-pink-600 dark:text-pink-400", bgColor: "bg-pink-600 dark:bg-pink-400" },
@@ -66,17 +64,26 @@ function getPromptForOption(option: OptionKey | null, config: ConfigDataType): s
 }
 
 export default function ChatContainer() {
-  const { messages, input, setInput, isLoading, isGenerating, sendMessage, error, clearChat, abortGeneration } = useChat();
+  const { 
+    messages, 
+    input, 
+    setInput, 
+    isLoading, 
+    isGenerating, 
+    sendMessage, 
+    error, 
+    clearChat, 
+    abortGeneration,
+    pdfContent,
+    setPDFContent 
+  } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  // const [imagePrompt, setImagePrompt] = useState("");
-  // const [showImagePrompt, setShowImagePrompt] = useState(false);
-  // const [imageAbortController, setImageAbortController] = useState<AbortController | null>(null);
-  // const [imageWarning, setImageWarning] = useState("");
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const { setTheme, theme } = useTheme();
 
   // Estados para el flujo de selección y configuración
   const [selectedOption, setSelectedOption] = useState<OptionKey | null>(null);
@@ -94,6 +101,19 @@ export default function ChatContainer() {
         setSelectedImage(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      setPDFContent(text);
+      sendMessage("He cargado un PDF. Por favor, ayúdame a entender su contenido.");
+    } catch (err) {
+      console.error('Error reading PDF:', err);
     }
   };
 
@@ -115,71 +135,6 @@ export default function ChatContainer() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // function normalizePrompt(text: string) {
-  //   return text
-  //     .toLowerCase()
-  //     .normalize("NFD")
-  //     .replace(/[\u0300-\u036f]/g, "") // quitar tildes
-  //     .replace(/[^a-z0-9\s]/gi, "") // quitar símbolos
-  //     .replace(/\s+/g, " ") // espacios simples
-  //     .trim();
-  // }
-
-  // const handleGenerateImage = async () => {
-  //   if (!imagePrompt.trim()) return;
-  //   // Validar contra la blacklist y regex
-  //   const promptNorm = normalizePrompt(imagePrompt);
-  //   const found = BLACKLIST.some(word => promptNorm.includes(word));
-  //   const foundRegex = BLACKLIST_REGEX.some(rx => rx.test(promptNorm));
-  //   if (found || foundRegex) {
-  //     setImageWarning("El contenido de tu solicitud no es apropiado para un entorno educativo. Por favor, utiliza solo descripciones seguras y aptas para estudiantes.");
-  //     return;
-  //   } else {
-  //     setImageWarning("");
-  //   }
-  //   setIsGeneratingImage(true);
-  //   const abortController = new AbortController();
-  //   setImageAbortController(abortController);
-  //   try {
-  //     // Generar la imagen
-  //     const imageUrl = await AIService.getInstance().generateImage({
-  //       prompt: imagePrompt,
-  //       size: "512x512",
-  //       signal: abortController.signal
-  //     });
-  //     // Solo si fue exitoso, agregar ambos mensajes
-  //     addMessage({ role: "user", content: imagePrompt });
-  //     addMessage({ role: "assistant", content: "", mediaUrl: imageUrl });
-  //     setImagePrompt("");
-  //     setShowImagePrompt(false);
-  //   } catch (error: unknown) {
-  //     if (error instanceof DOMException && error.name === "AbortError") {
-  //       // Cancelado por el usuario, no hacer nada
-  //     } else {
-  //       console.error("Error generating image:", error);
-  //     }
-  //   } finally {
-  //     setIsGeneratingImage(false);
-  //     setImageAbortController(null);
-  //   }
-  // };
-
-  // const handleCancelImageGeneration = () => {
-  //   if (imageAbortController) {
-  //     imageAbortController.abort();
-  //   }
-  //   setShowImagePrompt(false);
-  //   setIsGeneratingImage(false);
-  // };
-
-  // Reiniciar flujo al limpiar chat
-  const handleClearChat = () => {
-    clearChat();
-    setSelectedOption(null);
-    setIsConfiguring(false);
-  };
-
-  // Cuando el usuario selecciona una opción del menú
   const handleMenuSelect = (key: OptionKey) => {
     if (["asistente", "ingles", "emociones"].includes(key)) {
       setSelectedOption(key);
@@ -195,7 +150,6 @@ export default function ChatContainer() {
     }
   };
 
-  // Cuando termina la configuración
   const handleConfigContinue = (data: ConfigDataType) => {
     setIsConfiguring(false);
     const prompt = getPromptForOption(selectedOption, data);
@@ -205,7 +159,6 @@ export default function ChatContainer() {
     }, 200);
   };
 
-  // Menú central, configuración o chat
   let mainContent;
   if (messages.length === 0) {
     if (isConfiguring && selectedOption === "asistente") {
@@ -279,27 +232,69 @@ export default function ChatContainer() {
   }
 
   return (
-    <Card className="w-full h-full flex flex-col border-0 pb-0">
-      <CardHeader className="shrink-0">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-gray-700 dark:text-white text-2xl font-bold">
-              Connie
-            </CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            {messages.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearChat}
-                className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Limpiar
-              </Button>
-            )}
-          </div>
+    <Card className="w-full mx-auto h-full flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-2xl font-bold">Connie</CardTitle>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="ml-2"
+            title="Cambiar modo claro/oscuro"
+          >
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            className="relative group hover:scale-105 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 dark:hover:shadow-blue-500/10 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+              Agregar imagen
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => pdfInputRef.current?.click()}
+            className="relative group hover:scale-105 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 dark:hover:shadow-green-500/10 hover:bg-green-50 dark:hover:bg-green-900/20"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+              Agregar PDF
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={clearChat}
+            className="relative group hover:scale-105 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 dark:hover:shadow-red-500/10 hover:bg-red-50 dark:hover:bg-red-900/20"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+              Limpiar chat
+            </span>
+          </Button>
         </div>
       </CardHeader>
 
@@ -378,61 +373,74 @@ export default function ChatContainer() {
 
       {selectedImage && (
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="relative w-32 h-32">
-            <Image
-              src={selectedImage}
-              alt="Imagen seleccionada"
-              fill
-              className="object-contain rounded-lg"
-            />
-            <button
+          <div className="flex items-center gap-2">
+            <div className="relative w-32 h-32">
+              <Image
+                src={selectedImage}
+                alt="Imagen seleccionada"
+                fill
+                className="object-contain rounded-lg"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setSelectedImage(null)}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+              className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
             >
-              <X className="h-4 w-4" />
-            </button>
+              <X className="h-4 w-4 mr-2" />
+              Eliminar imagen
+            </Button>
           </div>
         </div>
       )}
 
-      <CardFooter className="border-t border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-800 rounded-b-2xl shrink-0">
-        <form onSubmit={handleSubmit} className="flex w-full gap-2">
+      {pdfContent && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              PDF cargado como contexto
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPDFContent(null)}
+              className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 ml-auto"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Eliminar PDF
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <CardFooter>
+        <form onSubmit={handleSubmit} className="w-full flex space-x-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Escribe tu pregunta..."
-            className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+            placeholder={
+              pdfContent 
+                ? "Haz una pregunta sobre el PDF..." 
+                : selectedImage 
+                ? "Haz una pregunta sobre la imagen..."
+                : "Escribe un mensaje..."
+            }
             disabled={isLoading}
+            className="flex-1"
           />
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageUpload}
-            accept="image/*"
-            className="hidden"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            className="text-white shrink-0 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 dark:from-indigo-600 dark:to-purple-600 dark:hover:from-indigo-500 dark:hover:to-purple-500 shadow-md transition-all duration-200 rounded-lg"
-            title="Subir imagen"
-          >
-            Usar imagen
-            <Camera className="h-4 w-4" />
-          </Button>
-          {/*
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowImagePrompt(true)}
-            className="shrink-0 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-500 dark:hover:to-emerald-500 shadow-md transition-all duration-200 rounded-lg"
-            title="Generar imagen"
-          >
-            <ImageIcon className="h-4 w-4" />
-          </Button>
-          */}
-          {!(isLoading || isGenerating) && (
+          {(isLoading || isGenerating) ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={abortGeneration}
+              className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 dark:from-red-600 dark:to-pink-600 dark:hover:from-red-500 dark:hover:to-pink-500 shadow-md transition-all duration-200 rounded-lg flex items-center justify-center"
+              title="Detener generación"
+            >
+              <StopCircle className="h-4 w-4" />
+            </Button>
+          ) : (
             <Button
               type="submit"
               disabled={!input.trim()}
@@ -441,68 +449,23 @@ export default function ChatContainer() {
               <Send className="h-4 w-4 text-white" />
             </Button>
           )}
-          {(isLoading || isGenerating) && (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={abortGeneration}
-              className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 dark:from-red-600 dark:to-pink-600 dark:hover:from-red-500 dark:hover:to-pink-500 shadow-md transition-all duration-200 rounded-lg flex items-center justify-center"
-              title="Detener generación"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
         </form>
       </CardFooter>
 
-      {/*
-      <AnimatePresence>
-        {showImagePrompt && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-          >
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-2xl w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4 text-center">Generar Imagen</h2>
-              {imageWarning && (
-                <div className="text-red-600 text-sm mb-2 font-semibold text-center">
-                  {imageWarning}
-                </div>
-              )}
-              <Input
-                value={imagePrompt}
-                onChange={(e) => setImagePrompt(e.target.value)}
-                placeholder="Describe la imagen que quieres generar..."
-                className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 transition-all duration-200 mb-4"
-                disabled={isGeneratingImage}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleCancelImageGeneration}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleGenerateImage}
-                  disabled={isGeneratingImage || !imagePrompt.trim()}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 dark:from-green-600 dark:to-emerald-600 dark:hover:from-green-500 dark:hover:to-emerald-500 shadow-md transition-all duration-200"
-                >
-                  {isGeneratingImage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Generar Imagen"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={pdfInputRef}
+        onChange={handlePDFUpload}
+        accept=".pdf"
+        className="hidden"
+      />
     </Card>
   );
 }
