@@ -1,200 +1,76 @@
-// import type { Message } from "./chat"
-// import { useState, useCallback, useRef } from "react";
-// import { AIService } from "./ai-service";
+'use client';
 
-// export function useChat() {
-//   const [messages, setMessages] = useState<Message[]>([]);
-//   const [input, setInput] = useState("");
-//   const [isLoading, setIsLoading] = useState(false);
-//   const [isGenerating, setIsGenerating] = useState(false);
-//   const [error, setError] = useState<Error | null>(null);
-//   const abortControllerRef = useRef<AbortController | null>(null);
+import { useState, useCallback, useRef } from 'react';
+import { generateTextResponse, generateImageResponse, generatePDFResponse, summarizeYouTubeVideo } from '@/app/actions/chat';
 
-//   const sendMessage = useCallback(async (prompt: string, mediaUrl?: string) => {
-//     setIsLoading(true);
-//     setIsGenerating(false);
-//     setError(null);
-
-//     const userMessage: Message = { 
-//       role: "user", 
-//       content: prompt,
-//       mediaUrl 
-//     };
-//     setMessages((prevMessages) => [...prevMessages, userMessage]);
-
-//     // Crear y guardar el AbortController
-//     const abortController = new AbortController();
-//     abortControllerRef.current = abortController;
-
-//     try {
-//       const response = await AIService.getInstance().generateResponse(
-//         prompt, 
-//         mediaUrl,
-//         messages,
-//         abortController.signal
-//       );
-
-//       if (!response.body) {
-//         throw new Error("Response body is null");
-//       }
-
-//       const reader = response.body.getReader();
-//       const decoder = new TextDecoder();
-//       let accumulatedContent = "";
-
-//       while (true) {
-//         const { done, value } = await reader.read();
-
-//         if (done) {
-//           break;
-//         }
-
-//         const chunk = decoder.decode(value, { stream: true });
-//         accumulatedContent += chunk;
-
-//         setMessages((prevMessages) => {
-//           const updatedMessages = [...prevMessages];
-//           const lastMessage = updatedMessages[updatedMessages.length - 1];
-//           if (lastMessage.role === "assistant") {
-//             lastMessage.content = accumulatedContent;
-//           } else {
-//             updatedMessages.push({ role: "assistant", content: accumulatedContent });
-//           }
-//           return updatedMessages;
-//         });
-
-//         setIsGenerating(true);
-//       }
-//     } catch (err: unknown) {
-//       if (err instanceof Error && err.name === "AbortError") {
-//         // Cancelado por el usuario, no hacer nada especial
-//       } else {
-//         const error = err instanceof Error ? err : new Error(String(err));
-//         setError(error);
-//         console.error("Error in chat:", error);
-//       }
-//     } finally {
-//       setIsLoading(false);
-//       setIsGenerating(false);
-//       abortControllerRef.current = null;
-//     }
-//   }, [messages]);
-
-//   const abortGeneration = useCallback(() => {
-//     if (abortControllerRef.current) {
-//       abortControllerRef.current.abort();
-//     }
-//   }, []);
-
-//   const clearChat = useCallback(() => {
-//     setMessages([]);
-//     setError(null);
-//   }, []);
-
-//   const addMessage = useCallback((message: Message) => {
-//     setMessages((prevMessages) => [...prevMessages, message]);
-//   }, []);
-
-//   return {
-//     messages,
-//     input,
-//     setInput,
-//     isLoading,
-//     isGenerating,
-//     sendMessage,
-//     error,
-//     clearChat,
-//     addMessage,
-//     abortGeneration,
-//   };
-// }
-
-
-import type { Message } from "./chat"
-import { useState, useCallback, useRef } from "react";
-import { AIService } from "./ai-service";
+export type Message = {
+  role: 'user' | 'assistant';
+  content: string;
+  mediaUrl?: string;
+};
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [pdfContent, setPdfContent] = useState<string | null>(null);
+  const [pdfContent, setPDFContent] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const sendMessage = useCallback(async (prompt: string, mediaUrl?: string) => {
-    setIsLoading(true);
-    setIsGenerating(false);
-    setError(null);
-
-    const userMessage: Message = { 
-      role: "user", 
-      content: prompt,
-      mediaUrl 
-    };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
-
-    // Crear y guardar el AbortController
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
+  const sendMessage = useCallback(async (content: string, imageBase64?: string) => {
+    if (!content.trim()) return;
 
     try {
+      setIsLoading(true);
+      setIsGenerating(true);
+      setError(null);
+
+      // Crear el mensaje del usuario con la imagen si existe
+      const userMessage: Message = {
+        role: 'user',
+        content,
+        ...(imageBase64 && { mediaUrl: `data:image/jpeg;base64,${imageBase64}` }),
+      };
+
+      // Agregar el mensaje del usuario al historial
+      setMessages(prev => [...prev, userMessage]);
+
+      // Crear un nuevo AbortController
+      abortControllerRef.current = new AbortController();
+
       let response;
       if (pdfContent) {
-        response = await AIService.getInstance().generatePDFResponse(
-          prompt,
+        response = await generatePDFResponse({
+          prompt: content,
           pdfContent,
-          messages,
-          abortController.signal
-        );
-      } else {
-        response = await AIService.getInstance().generateResponse(
-          prompt,
-          mediaUrl,
-          messages,
-          abortController.signal
-        );
-      }
-
-      if (!response.body) {
-        throw new Error("Response body is null");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        const chunk = decoder.decode(value, { stream: true });
-        accumulatedContent += chunk;
-
-        setMessages((prevMessages) => {
-          const updatedMessages = [...prevMessages];
-          const lastMessage = updatedMessages[updatedMessages.length - 1];
-          if (lastMessage.role === "assistant") {
-            lastMessage.content = accumulatedContent;
-          } else {
-            updatedMessages.push({ role: "assistant", content: accumulatedContent });
-          }
-          return updatedMessages;
+          history: messages,
         });
-
-        setIsGenerating(true);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        // Cancelado por el usuario, no hacer nada especial
+      } else if (imageBase64) {
+        response = await generateImageResponse({
+          prompt: content,
+          imageBase64,
+          history: messages,
+        });
       } else {
-        const error = err instanceof Error ? err : new Error(String(err));
-        setError(error);
-        console.error("Error in chat:", error);
+        response = await generateTextResponse({
+          prompt: content,
+          history: messages,
+        });
+      }
+
+      // Agregar la respuesta del asistente
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: response.text },
+      ]);
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Generación cancelada por el usuario');
+      } else {
+        console.error('Error al enviar mensaje:', error);
+        setError(error instanceof Error ? error : new Error('Error desconocido'));
       }
     } finally {
       setIsLoading(false);
@@ -206,21 +82,37 @@ export function useChat() {
   const abortGeneration = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      setIsGenerating(false);
     }
   }, []);
 
   const clearChat = useCallback(() => {
     setMessages([]);
+    setInput('');
     setError(null);
-    setPdfContent(null);
+    setPDFContent(null);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
   }, []);
 
   const addMessage = useCallback((message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
   }, []);
 
-  const setPDFContent = useCallback((content: string | null) => {
-    setPdfContent(content);
+  // Nueva función para resumir videos de YouTube
+  const summarizeYouTube = useCallback(async (videoUrl: string, prompt?: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setMessages(prev => [...prev, { role: 'user', content: `Resumir video: ${videoUrl}` }]);
+      const response = await summarizeYouTubeVideo({ videoUrl, prompt });
+      setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
+    } catch (error) {
+      setError(error instanceof Error ? error : new Error('Error al resumir video de YouTube'));
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   return {
@@ -229,12 +121,13 @@ export function useChat() {
     setInput,
     isLoading,
     isGenerating,
-    sendMessage,
     error,
+    sendMessage,
+    abortGeneration,
     clearChat,
     addMessage,
-    abortGeneration,
     pdfContent,
     setPDFContent,
+    summarizeYouTube,
   };
 }

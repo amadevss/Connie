@@ -1,7 +1,7 @@
 import { Avatar } from "@/components/ui/avatar";
 import { User, Bot, Maximize2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Message } from "./chat";
+import type { Message } from "./use-chat";
 import { motion } from "framer-motion";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -191,7 +191,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
           delay: 0.2
         }}
         className={cn(
-          "rounded-2xl p-4 min-w-[200px] max-w-[85%] transition-all duration-200",
+          "rounded-2xl p-4 min-w-[200px] max-w-[85%] shadow-sm transition-all duration-200",
           isUser
             ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
             : "text-gray-800 dark:text-gray-100"
